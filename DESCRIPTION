@@ -1,11 +1,15 @@
 Package: volleystats
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Title: Volleyball Data Tools For Statistical Analysis
+Version: 0.1.0.9000
+Author: Jakub Bujnowicz [aut, cre]
+Maintainer: Jakub Bujnowicz <bujnowiczgithub@gmail.com>
+URL: https://github.com/JakubBujnowicz/volleystats
+Description: Tools for downloading, formatting and analysing the statistical
+    data from volleyball matches - mainly for the highest polish professional 
+    league Plusliga.
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
+Imports: checkmate, data.table, pryr, R6, rvest, stringr, utils, xml2
+RoxygenNote: 7.1.2
