@@ -1,3 +1,12 @@
+# My own
+package_building.R
+tars/
+manuals/
+tests/testing_script.R
+.Rprofile
+CRAN-RELEASE
+
+
 # History files
 .Rhistory
 .Rapp.history
@@ -19,6 +28,7 @@
 
 # RStudio files
 .Rproj.user/
+*.Rproj
 
 # produced vignettes
 vignettes/*.html

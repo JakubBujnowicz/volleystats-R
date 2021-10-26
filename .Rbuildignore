@@ -1,0 +1,14 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+
+package_building.R
+tars/
+manuals/
+data-raw/
+tests/
+.Rprofile
+LICENSE
+cran-comments.md
+^CRAN-RELEASE$
+^cran-comments\.md$
+^revdep$
