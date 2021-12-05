@@ -2,6 +2,7 @@
 #'
 #' @import checkmate
 #' @import data.table
+#' @import httr
 #' @importFrom pryr unenclose
 #' @import R6
 #' @import rvest
