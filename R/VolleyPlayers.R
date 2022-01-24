@@ -91,12 +91,13 @@ public = list(
         assert_character(seasons, pattern = "^[0-9]{4}/[0-9]{4}$",
                          null.ok = TRUE)
 
-        ids <- as.character(ids)
+        ids <- unique(as.character(ids))
 
         # Assign default value for the season
         if (is.null(seasons)) {
             seasons <- date2season()
         }
+        seasons <- unique(seasons)
 
         # Create combinations tab and save URLs
         self$dt <- CJ(PlayerID = ids, Season = seasons)

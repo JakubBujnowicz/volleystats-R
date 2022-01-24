@@ -1,52 +1,72 @@
 load_all()
+library(ggplot2)
+seasons <- year2season(2020:2021)
 
 
+# VolleySeasons ----------------------------------------------------------------
+load_all()
 
-pl_opp <- c(Muzaj = 622, Kaczmarek = 28378, Butryn = 488, Bołądź = 631,
-         Filipiak = 304, Konarski = 88, Malinowski = 430)
-pl_oh <- c(Śliwka = 630, Semeniuk = 27949, Fornal = 22806, Kwolek = 22573,
-            Szymura = 633)
-players <- opp
-seasons <- year2season(2021)
+vss <- VolleySeasons$new(seasons = seasons)
+vss$fetch("teams")
+vss$teams_dt
 
-ps <- VolleyPlayers$new(ids = players, seasons = seasons)
-ps$fetch("info")
-ps$fetch("stats")
 
-dt <- copy(ps$stats_dt)
+# VolleyTeams ------------------------------------------------------------------
+load_all()
+
+vtm <- VolleyTeams$new(ids = vss$teams_dt$TeamID,
+                       seasons = seasons)
+vtm$fetch("players")
+vtm$players_dt
+
+opp <- vtm$players_dt[Position == "Atakujący", setNames(PlayerID, PlayerName)]
+oh <- vtm$players_dt[Position == "Przyjmujący", setNames(PlayerID, PlayerName)]
+mb <- vtm$players_dt[Position == "środkowy", setNames(PlayerID, PlayerName)]
+allp <- vtm$players_dt[, setNames(PlayerID, PlayerName)]
+
+
+# VolleyPlayers ----------------------------------------------------------------
+load_all()
+
+vpl <- VolleyPlayers$new(ids = vtm$players_dt$PlayerID,
+                         seasons = seasons)
+# vpl$fetch("info")
+vpl$fetch("stats")
+
+# Statistics
+players <- allp
+dt <- copy(vpl$stats_dt)
 dt[, PlayerName := names(players)[match(PlayerID, players)]]
-nums <- setdiff(names(Filter(is.numeric, dt)), "PlayerID")
+dt[, `:=`(AttackPerc = AttackPoints / AttackTotal,
+          AttackEff = (AttackPoints - AttackError - AttackBlocked) / AttackTotal,
+          ServeEff = (ServePoints + 0.25 * ServeTotal - ServeErrors) /
+              ServeTotal)]
 
+nums <- setdiff(names(Filter(is.numeric, dt)), "PlayerID")
 dts <- dt[, lapply(.SD, sum, na.rm = TRUE), .SDcols = nums,
-          keyby = .(PlayerName, Season)]
-dts <- dts[SetsPlayed > 0]
+          keyby = .(PlayerName, Season)][SetsPlayed > 0]
 dts[, `:=`(AttackPerc = AttackPoints / AttackTotal,
            AttackEff = (AttackPoints - AttackError - AttackBlocked) / AttackTotal,
            ServeEff = (ServePoints + 0.25 * ServeTotal - ServeErrors) /
                ServeTotal)]
 
-ggplot(dts, aes(x = Season, y = AttackPerc,
-                fill = PlayerName, group = PlayerName)) +
-    geom_col(position = "dodge", col = "black")
-
-atk <- dts[Season == "2021/2022" & AttackTotal > 100,
-           .(Zawodnik = PlayerName,
-             LiczbaSetów = SetsPlayed,
-             LiczbaAtaków = AttackTotal,
+top <- dts[Season == max(Season) & AttackTotal > 50,
+           .(PlayerName,
+             SetsPlayed,
+             AttackTotal,
              ServeEff,
-             Skuteczność = round(AttackPerc * 100, 2),
-             Efektywność = round(AttackEff * 100, 2))][
-                 order(-Efektywność)]
+             AttackPerc,
+             AttackEff,
+             EffRatio = AttackPerc / AttackEff,
+             BlocksSet = Blocks / SetsPlayed)][
+                 order(-AttackEff)]
+print(top, digits = 4)
 
-dt[, `:=`(AttackPerc = AttackPoints / AttackTotal,
-          AttackEff = (AttackPoints - AttackError - AttackBlocked) / AttackTotal,
-          ServeEff = (ServePoints + 0.25 * ServeTotal - ServeErrors) /
-              ServeTotal)]
-dt[, MatchID := seq_len(.N), keyby = .(PlayerID, Season)]
-ggplot(dt[PlayerName %in% atk$Zawodnik[1:7]],
+ggplot(dt[PlayerName %in% top$PlayerName[1:10]],
        aes(x = MatchID, y = AttackEff, col = PlayerName)) +
-    geom_point() +
-    geom_smooth(se = FALSE)
+    geom_point(show.legend = FALSE) +
+    geom_smooth(se = FALSE, show.legend = FALSE) +
+    facet_wrap(. ~ PlayerName)
 
 ggplot(dt[AttackTotal > 3],
        aes(x = AttackPerc, y = AttackEff)) +
@@ -56,16 +76,6 @@ ggplot(dt[AttackTotal > 3],
     geom_smooth(method = "lm")
 
 
-# Teams ------------------------------------------------------------------------
-teams <- c(Zawiercie = 30288, Resovia = 1401, Radom = 1545,
-           Lubin = 26787, Katowice = 29741, ZAKSA = 1410,
-           Olsztyn = 1406, Jastrzębski = 1405, Lublin = 2100016,
-           Skra = 1407, Warszawa = 1403, Nysa = 1304,
-           Ślepsk = 30289, Gdańsk = 1411)
 
-tm <- VolleyTeams$new(ids = teams)
-tm$fetch("players")
 
-opp <- tm$players_dt[Position == "Atakujący", setNames(PlayerID, PlayerName)]
-oh <- tm$players_dt[Position == "Przyjmujący", setNames(PlayerID, PlayerName)]
-allp <- tm$players_dt[, setNames(PlayerID, PlayerName)]
+
