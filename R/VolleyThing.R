@@ -37,6 +37,7 @@ private = list(
 
 public = list(
     # Public fields ------------------------------------------------------------
+    league = NULL,
     seasons = NULL,
     dt = NULL,
 

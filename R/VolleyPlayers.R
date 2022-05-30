@@ -84,12 +84,14 @@ public = list(
     stats_dt = NULL,
 
     # Public methods -----------------------------------------------------------
-    initialize = function(ids, seasons = NULL)
+    initialize = function(ids, seasons = NULL, league = NULL)
     {
         assert_integerish(ids, lower = 1, min.len = 1,
                           any.missing = FALSE)
         assert_character(seasons, pattern = "^[0-9]{4}/[0-9]{4}$",
                          null.ok = TRUE)
+        assert_choice(league, choices = .leagues,
+                      null.ok = TRUE)
 
         ids <- unique(as.character(ids))
 
@@ -99,20 +101,26 @@ public = list(
         }
         seasons <- unique(seasons)
 
+        # Assign default for the league
+        if (is.null(league)) {
+            league <- .leagues[1]
+        }
+
         # Create combinations tab and save URLs
         self$dt <- CJ(PlayerID = ids, Season = seasons)
         ssn_years <- season2year(self$dt$Season)
 
-        private$.urls$stat <-
-            paste0("https://www.plusliga.pl/statsPlayers/tournament_1/",
-                   ssn_years, "/id/", self$dt$PlayerID, ".html")
-        private$.urls$info <-
-            paste0("https://www.plusliga.pl/players/tour/", ssn_years, "/id/",
-                   self$dt$PlayerID, ".html")
+        private$.urls$stat <- .league_url(league = league,
+                                          "statsPlayers/tournament_1/",
+                                          ssn_years, "/id/", self$dt$PlayerID)
+        private$.urls$info <- .league_url(league = league,
+                                          "players/tour/", ssn_years, "/id/",
+                                          self$dt$PlayerID)
 
         # Assign parameters
         self$ids <- ids
         self$seasons <- seasons
+        self$league <- league
 
         return(self)
     }

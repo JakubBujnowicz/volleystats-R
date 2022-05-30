@@ -43,10 +43,12 @@ public = list(
     teams_dt = NULL,
 
     # Public methods -------------------------------------------------------
-    initialize = function(seasons = NULL)
+    initialize = function(seasons = NULL, league = NULL)
     {
         assert_character(seasons, pattern = "^[0-9]{4}/[0-9]{4}$",
                          null.ok = TRUE)
+        assert_choice(league, choices = .leagues,
+                      null.ok = TRUE)
 
         # Assign default value for the season
         if (is.null(seasons)) {
@@ -54,15 +56,22 @@ public = list(
         }
         seasons <- unique(seasons)
 
+        # Assign default for the league
+        if (is.null(league)) {
+            league <- .leagues[1]
+        }
+
         # Create combinations tab and save URLs
         self$dt <- data.table(Season = seasons)
         setorder(self$dt, Season)
 
-        private$.urls$teams <- paste0("https://www.plusliga.pl/teams/tour/",
-                                      season2year(self$dt$Season), ".html")
+        private$.urls$teams <- .league_url(league = league,
+                                           "teams/tour/",
+                                           season2year(self$dt$Season))
 
         # Assign parameters
         self$seasons <- self$dt$Season
+        self$league <- league
 
         return(self)
     }

@@ -19,3 +19,6 @@ globalVariables(
 
 
 # Options ----------------------------------------------------------------------
+.leagues <- c("PlusLiga",
+              "Tauron Liga",
+              "Tauron 1. Liga")
