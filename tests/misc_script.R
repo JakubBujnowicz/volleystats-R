@@ -1,7 +1,9 @@
 load_all()
 library(ggplot2)
-seasons <- year2season(2021)
-league <- "Tauron Liga"
+library(openxlsx)
+seasons <- year2season(2022)
+league <- "PlusLiga"
+
 
 # VolleySeasons ----------------------------------------------------------------
 load_all()
@@ -67,26 +69,98 @@ dts[, `:=`(AttackScore = AttackEff * AttacksSet,
            ServeScore = ServeEff * ServesSet,
            TotalScore = AttackEff * AttacksSet + ServeEff * ServesSet + BlocksSet)]
 
-top <- dts[Season == max(Season) & AttackTotal >= 75,
+top <- dts[Season == max(Season) & AttackTotal >= 10,
            .(PlayerName,
              Position,
              # SetsPlayed,
              # AttackTotal,
              AttackEff,
              AttacksSet,
-             AttackScore = AttackEff * AttacksSet,
+             AttackScore,
              ServeEff,
              ServesSet,
-             ServeScore = ServeEff * ServesSet,
-             BlocksSet = BlocksSet,
-             TotalScore = AttackEff * AttacksSet + ServeEff * ServesSet + BlocksSet
+             ServeScore,
+             BlocksSet,
+             TotalScore
              )][order(-TotalScore)]
-top[, print(.SD, digits = 3), by = Position]
+top_spl <- split(top[, -"Position"], top$Position)
+lapply(top_spl, setnames, old = "ServeEff", new = "ServeEff*")
+names(top_spl) <- str_to_sentence(names(top_spl))
 
+# Styles
+playerh_style <- createStyle(fgFill = "#ED8917", textDecoration = "bold",
+                             border = "LeftRight")
+player_style <- createStyle(fgFill = "#EDAD71",
+                            border = "LeftRight")
 
-openxlsx::write.xlsx(split(top[, -"Position"], top$Position),
-                     "C:/Users/User/Desktop/statsy.xlsx",
-                     overwrite = TRUE)
+perc_style <- createStyle(numFmt = "PERCENTAGE")
+
+valueh_style <- createStyle(fgFill = "steelblue4", textDecoration = "bold",
+                            halign = "right", fontColour = "white",
+                            border = "LeftRight")
+value_style <- createStyle(fgFill = "skyblue1", numFmt = "NUMBER",
+                           border = "LeftRight")
+
+scoreh_style <- createStyle(fgFill = "olivedrab4", textDecoration = "bold",
+                            halign = "right", fontColour = "white",
+                            border = "LeftRight")
+score_style <- createStyle(fgFill = "darkolivegreen2", numFmt = "NUMBER",
+                           border = "LeftRight")
+
+finalh_style <- createStyle(fgFill = "#67149E", textDecoration = "bold",
+                            halign = "right", fontColour = "white",
+                            border = "LeftRight")
+final_style <- createStyle(fgFill = "#C494E8", numFmt = "NUMBER",
+                           border = "LeftRight")
+
+wb <- createWorkbook()
+for (i in seq_along(top_spl)) {
+    nm <- names(top_spl)[i]
+    addWorksheet(wb, sheetName = nm, gridLines = TRUE)
+    writeData(wb, sheet = nm, x = top_spl[[nm]])
+
+    n <- nrow(top_spl[[nm]]) + 1
+    addStyle(wb, sheet = nm, style = playerh_style,
+             rows = 1, cols = 1)
+    addStyle(wb, sheet = nm, style = player_style,
+             rows = 2:n, cols = 1)
+
+    # Value cols
+    for (vc in c(2:3, 5:6)) {
+        addStyle(wb, sheet = nm, style = valueh_style,
+                 rows = 1, cols = vc)
+        addStyle(wb, sheet = nm, style = value_style,
+                 rows = 2:n, cols = vc)
+    }
+    for (vc in c(2, 5)) {
+        addStyle(wb, sheet = nm, style = perc_style,
+                 rows = 2:n, cols = vc, stack = TRUE)
+    }
+
+    # Score cols
+    for (vc in c(4, 7:8)) {
+        addStyle(wb, sheet = nm, style = scoreh_style,
+                 rows = 1, cols = vc)
+        addStyle(wb, sheet = nm, style = score_style,
+                 rows = 2:n, cols = vc)
+    }
+
+    # Final col
+    addStyle(wb, sheet = nm, style = finalh_style,
+             rows = 1, cols = 9)
+    addStyle(wb, sheet = nm, style = final_style,
+             rows = 2:n, cols = 9)
+
+    for (rw in c(1, n)) {
+        addStyle(wb, sheet = nm, style = createStyle(border = "Bottom"),
+                 rows = rw, cols = 1:ncol(top_spl[[nm]]),
+                 stack = TRUE)
+    }
+
+    setColWidths(wb, sheet = nm, cols = 1:ncol(top_spl[[nm]]),
+                 widths = "auto")
+}
+openXL(wb)
 
 ggplot(melt(top, id.vars = c("PlayerName", "Position"),
             measure.vars = c("AttackScore", "ServeScore", "BlockScore")),
