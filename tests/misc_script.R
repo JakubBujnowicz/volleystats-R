@@ -45,7 +45,9 @@ dt <- copy(vpl$stats_dt)
 dt[, PlayerName := names(players)[match(PlayerID, players)]]
 vtm$players_dt[, PlayerID := as.character(PlayerID)]
 dt[vtm$players_dt, on = "PlayerID", Position := Position]
-dt[, `:=`(AttackPerc = AttackPoints / AttackTotal,
+dt[, `:=`(RatioSet = (Points - ReceptionError - ServeErrors -
+                          AttackError - AttackBlocked) / SetsPlayed,
+          AttackPerc = AttackPoints / AttackTotal,
           AttackEff = (AttackPoints - AttackError - AttackBlocked) / AttackTotal,
           ServeEff = (ServePoints - ServeErrors) / ServeTotal + 0.2,
           AttacksSet = AttackTotal / SetsPlayed,
@@ -59,7 +61,9 @@ dt[, MatchID := seq_len(.N), by = PlayerName]
 nums <- setdiff(names(Filter(is.numeric, dt)), "PlayerID")
 dts <- dt[, lapply(.SD, sum, na.rm = TRUE), .SDcols = nums,
           keyby = .(PlayerName, Position, Season)][SetsPlayed > 0]
-dts[, `:=`(AttackPerc = AttackPoints / AttackTotal,
+dts[, `:=`(RatioSet = (Points - ReceptionError - ServeErrors -
+                           AttackError - AttackBlocked) / SetsPlayed,
+           AttackPerc = AttackPoints / AttackTotal,
            AttackEff = (AttackPoints - AttackError - AttackBlocked) / AttackTotal,
            ServeEff = (ServePoints - ServeErrors) / ServeTotal + 0.15,
            AttacksSet = AttackTotal / SetsPlayed,
@@ -69,7 +73,7 @@ dts[, `:=`(AttackScore = AttackEff * AttacksSet,
            ServeScore = ServeEff * ServesSet,
            TotalScore = AttackEff * AttacksSet + ServeEff * ServesSet + BlocksSet)]
 
-top <- dts[Season == max(Season) & AttackTotal >= 10,
+top <- dts[Season == max(Season) & AttackTotal >= 100,
            .(PlayerName,
              Position,
              # SetsPlayed,
@@ -81,8 +85,11 @@ top <- dts[Season == max(Season) & AttackTotal >= 10,
              ServesSet,
              ServeScore,
              BlocksSet,
-             TotalScore
+             TotalScore,
+             RatioSet
              )][order(-TotalScore)]
+print(top[, print(.SD), keyby = Position])
+
 top_spl <- split(top[, -"Position"], top$Position)
 lapply(top_spl, setnames, old = "ServeEff", new = "ServeEff*")
 names(top_spl) <- str_to_sentence(names(top_spl))
@@ -160,7 +167,7 @@ for (i in seq_along(top_spl)) {
     setColWidths(wb, sheet = nm, cols = 1:ncol(top_spl[[nm]]),
                  widths = "auto")
 }
-openXL(wb)
+saveWorkbook(wb, file.path("~/Desktop/plusliga.xlsx"))
 
 ggplot(melt(top, id.vars = c("PlayerName", "Position"),
             measure.vars = c("AttackScore", "ServeScore", "BlockScore")),
@@ -169,39 +176,30 @@ ggplot(melt(top, id.vars = c("PlayerName", "Position"),
     facet_wrap(. ~ Position, scales = "free_x") +
     theme(axis.text.x = element_text(angle = 45, vjust = 0.2))
 
-for (pst in unique(dts$Position)) {
-    plr_top <- head(top[Position == pst, PlayerName], 12)
-    plot_dt <- dt[PlayerName %in% plr_top]
-    plot_dt[, PlayerName := factor(PlayerName,
-                                   levels = plr_top)]
-    mn <- plot_dt[, mean(TotalScore, na.rm = TRUE)]
-
-    p <- ggplot(plot_dt,
-                aes(x = MatchID, y = TotalScore,
-                    col = PlayerName)) +
-        geom_hline(yintercept = mn, linetype = "dashed") +
+for (pst in unique(top$Position)) {
+    top_pst <- head(top[Position == pst, PlayerName], 12)
+    temp <- dt[PlayerName %in% top_pst]
+    temp[, PlayerName := factor(PlayerName, levels = top_pst,
+                                ordered = TRUE)]
+    p <- ggplot(temp,
+           aes(x = MatchID, y = TotalScore, col = PlayerName)) +
         geom_point(show.legend = FALSE) +
-        geom_smooth(se = TRUE, show.legend = FALSE,
-                    method = "loess", formula = y ~ x) +
+        geom_smooth(se = FALSE, show.legend = FALSE) +
         facet_wrap(. ~ PlayerName) +
-        ggtitle(str_to_title(pst))
+        labs(x = "Zagrany mecz", y = "Oczekiwane ratio/set",
+             title = str_to_sentence(pst))
     plot(p)
-    ggsave(paste0("C:/Users/User/Desktop/", pst, ".png"),
-           plot = p)
+    ggsave(plot = p, filename = paste0("~/Desktop/", tolower(pst), ".png"))
 }
 
-ggplot(dt[PlayerName %in% top$PlayerName[1:10]],
-       aes(x = MatchID, y = TotalScore, col = PlayerName)) +
-    geom_point(show.legend = FALSE) +
-    geom_smooth(se = FALSE, show.legend = FALSE) +
-    facet_wrap(. ~ PlayerName)
-
 ggplot(dt[AttackTotal > 3],
-       aes(x = AttackEff, y = AttackPerc)) +
-    geom_point(aes(col = PlayerName), show.legend = FALSE) +
-    geom_abline(slope = 1, col = "red") +
-    geom_abline(slope = 0.5, intercept = 0.5, col = "red") +
-    geom_smooth(method = "lm")
+           aes(x = AttackEff, y = AttackPerc)) +
+        geom_point(aes(col = PlayerName), show.legend = FALSE) +
+        geom_abline(slope = 1, col = "red") +
+        geom_abline(slope = 0.5, intercept = 0.5, col = "red") +
+        geom_smooth(method = "lm")
+
+
 
 ggplot(dt[PlayerName %in% top[Position == "Atakujący"][1:10, PlayerName]],
        aes(x = MatchID, y = TotalScore)) +
@@ -223,3 +221,28 @@ aggr[Position == "Atakujący"][order(-AttackShare)]
 wide <- dcast(aggr, TeamName ~ Position, value.var = "AttackShare")
 wide[, lapply(.SD, function(x) paste0(round(100 * x, 2), "%")),
      .SDcols = is.numeric]
+
+# Share of attacks -------------------------------------------------------------
+to_percent <- function(x) sprintf("% 6.2f%%", 100 * x)
+vtm$fetch("names")
+
+x <- merge(vtm$players_dt, dts[, .(PlayerName, A = AttackTotal, S = SetsPlayed)],
+           by = "PlayerName")
+x[vtm$names_dt, on = "TeamID",
+  Team := TeamName]
+x[, `:=`(Season = NULL,
+         PlayerID = NULL,
+         PlayerNumber = NULL)]
+x[, ATeam := sum(A, na.rm = TRUE), keyby = Team]
+x[, APlayer := fcoalesce(A / ATeam, 0)]
+View(x[order(-APlayer), .(Team, PlayerName, Position, A, to_percent(APlayer))])
+
+x[, APosition := sum(A, na.rm = TRUE) / ATeam[1],
+        keyby = .(Team, Position)]
+
+
+hhi <- unique(x[, .(Team, PlayerName, APlayer)])
+hhi <- hhi[, .(HHI = sum(APlayer^2, na.rm = TRUE)),
+           keyby = Team]
+hhi[, N := 1 / HHI]
+hhi[, lapply(.SD, round, digits = 3), keyby = Team][order(-N)] |> View()
