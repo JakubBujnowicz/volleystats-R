@@ -2,11 +2,12 @@
 {
     assert_string(url)
 
-    connection <- HEAD(url)
+    connection <- httr::HEAD(url)
     result <- connection$url != url
 
     return(result)
 }
+
 
 .league_url <- function(league, ...)
 {

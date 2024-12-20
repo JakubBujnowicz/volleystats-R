@@ -1,21 +1,19 @@
 #' @keywords internal
-#'
+"_PACKAGE"
+
+## usethis namespace: start
 #' @import checkmate
 #' @import data.table
-#' @import httr
-#' @importFrom pryr unenclose
-#' @import R6
-#' @import rvest
 #' @import stringr
-#' @importFrom utils globalVariables
 #' @import xml2
-#'
+#' @importFrom httr HEAD
+#' @importFrom lubridate parse_date_time
+#' @importFrom rvest html_element
+#' @importFrom rvest html_elements
+#' @importFrom rvest html_table
+#' @importFrom rvest read_html
+## usethis namespace: end
 NULL
-
-# To remove notes from CMD Check
-globalVariables(
-    # Due to R6
-    c("self", "private"))
 
 
 # Options ----------------------------------------------------------------------
